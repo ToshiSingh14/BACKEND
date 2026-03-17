@@ -41,7 +41,7 @@ async function addStudent() {
 }
 
 async function deleteStudent(id) {
-  await fetch(`http://localhost:3000/api/students/${id}`, {
+  await fetch(`http://localhost:3000/api/data/${id}`, {
     method: "DELETE",
   });
 

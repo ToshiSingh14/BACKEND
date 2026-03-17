@@ -1,68 +1,105 @@
-const http = require('http');
-const fs = require('fs');
+const http = require("http");
+const fs = require("fs");
+
+const PORT = 3000;
 const path = require("path");
 
-const filepath = path.join(__dirname,"data.json");
+const DATA_FILE = path.join(__dirname, "students.json");
 
+function getStudents() {
+  const data = fs.readFileSync(DATA_FILE);
+  return JSON.parse(data);
+}
+
+function saveStudents(students) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(students, null, 2));
+}
 
 const server = http.createServer((req, res) => {
-   const url =new URL (req.url, `http://${req.headers.host}`) ;
-   const method = req.method;
-   const pathname = url.pathname;
+  // CORS HEADERS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS",
+  );
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-// jab /api/data path per get request aayegi tab hume data.json file ko read karkar uss data ko response m bhejna h
-    if(method==="GET"&& pathname==="/api/data"){
-        fs.readFile(filepath,"utf-8",(err,data)=>{
-            if (err) console.error(err);
-            res.writeHead(200,{"content-type":"application/json"});
-            res.end(data);
-        })
-    }
-//clint mujhhe jab post request bheje ga /api/data path par tab wo mujhe user ja data bhejega json format m . uss data ko m pahle m request.on event listener se collect karunga ab iske baad i have to write it in data.json array m. for this i will read the data then convert it into java sting object by json.parse and user data ko bhi phir iss array m wo 
-    else if(method==="POST" && pathname==="/api/data"){
-        let body = "";
+  // HANDLE PREFLIGHT
+  if (req.method === "OPTIONS") {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+  
+  // GET all students
+  if (req.method === "GET" && req.url === "/api/students") {
+    const students = getStudents();
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(students));
+  }
 
-        req.on("data",(chunks)=>{
-            body+=chunks;
-        })
+  // ADD student
+  else if (req.method === "POST" && req.url === "/api/students") {
+    let body = "";
 
-        req.on("end",()=>{
-            const userData = JSON.parse(body);
-            fs.readFile(filepath,"utf-8",(err,data)=>{
-                if (err) console.error(err);
-                const Data = JSON.parse(data);
-                Data.push(userData);
-                fs.writeFile(filepath,JSON.stringify(Data),(err)=>{
-                    if (err) console.error(err);
-                    res.writeHead(200,{"content-type":"application/json"});
-                    res.end();
-                })
-            })
-        })}
+    req.on("data", (chunk) => {
+      body += chunk.toString();
+    });
 
-        else if(method==="DELETE" && pathname ==="/api/data"){
-             const id = url.searchParams.get("id"); 
+    req.on("end", () => {
+      const newStudent = JSON.parse(body);
 
-                fs.readFile(filepath,"utf-8",(err,data)=>{
-                    if(err) console.error(err);
+      const students = getStudents();
 
-                    const tasks = JSON.parse(data);
+      newStudent.id = Date.now();
 
-                    const updatedTasks = tasks.filter(task => task.id != id);
+      students.push(newStudent);
 
-                    fs.writeFile(filepath, JSON.stringify(updatedTasks), (err)=>{
-                        if(err) console.error(err);
+      saveStudents(students);
 
-                        res.writeHead(200, {"content-type":"application/json"});
-                        res.end(JSON.stringify({message:"Task deleted"}));
-                    });
-                });
-        }
-            
+      res.end(JSON.stringify({ message: "Student added" }));
+    });
+  }
 
-    
+  // DELETE student
+  else if (req.method === "DELETE") {
+    const id = parseInt(req.url.split("/")[3]);
+
+    let students = getStudents();
+
+    students = students.filter((s) => s.id !== id);
+
+    saveStudents(students);
+
+    res.end(JSON.stringify({ message: "Deleted" }));
+  }
+
+// EDIT student
+  else if (req.method === "PUT") {
+    const id = parseInt(req.url.split("/")[3]);
+
+    let body = "";
+
+    req.on("data", (chunk) => (body += chunk));
+
+    req.on("end", () => {
+      const updated = JSON.parse(body);
+
+      let students = getStudents();
+
+      students = students.map((s) => (s.id === id ? { ...s, ...updated } : s));
+
+      saveStudents(students);
+
+      res.end(JSON.stringify({ message: "Updated" }));
+    });
+  } else {
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ message: "Not found" }));
+  }
 });
-server.listen(3000,()=>{
-    console.log("Server is running on http://localhost:3000");
-})
 
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
