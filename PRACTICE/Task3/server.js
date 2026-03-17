@@ -40,6 +40,26 @@ const server = http.createServer((req, res) => {
             })
         })}
 
+        else if(method==="DELETE" && pathname ==="/api/data"){
+             const id = url.searchParams.get("id"); 
+
+                fs.readFile(filepath,"utf-8",(err,data)=>{
+                    if(err) console.error(err);
+
+                    const tasks = JSON.parse(data);
+
+                    const updatedTasks = tasks.filter(task => task.id != id);
+
+                    fs.writeFile(filepath, JSON.stringify(updatedTasks), (err)=>{
+                        if(err) console.error(err);
+
+                        res.writeHead(200, {"content-type":"application/json"});
+                        res.end(JSON.stringify({message:"Task deleted"}));
+                    });
+                });
+        }
+            
+
     
 });
 server.listen(3000,()=>{
