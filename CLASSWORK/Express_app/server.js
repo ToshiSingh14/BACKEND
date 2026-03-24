@@ -1,7 +1,16 @@
 const express = require("express");
 const app = express();
 
-app.get("/sum", (req, res) => {
+
+
+app.use((req,res,next)=>{
+  console.log("request recieved at "+req.url); // global middleware
+});
+
+app.get("/sum", app.use((req,res,next)=>{
+  console.log("request recieved at "+req.url); 
+}) next()
+  ,(req, res) => {
   console.log(req.query);
   res.send(parseInt(req.query.a) + parseInt(req.query.b));
   
